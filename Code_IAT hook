@@ -3,10 +3,9 @@
 
 
 
-int hookedMessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
+int YourMessage(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
 {
 	MessageBoxW(NULL, L"Hello the IAT Hook", L"The IAT Have been hooked", 0);
-
 	return 0;
 }
 
@@ -21,14 +20,14 @@ int main()
 	PIMAGE_IMPORT_DESCRIPTOR importDescriptor = NULL;
 	IMAGE_DATA_DIRECTORY importsDirectory = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
 	importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)imageBase);
-	LPCSTR libraryName = NULL;
+	LPCSTR DllName = NULL;
 	HMODULE library = NULL;
 	PIMAGE_IMPORT_BY_NAME functionName = NULL;
 
 	while (importDescriptor->Name != NULL)
 	{
-		libraryName = (LPCSTR)importDescriptor->Name + (DWORD_PTR)imageBase;
-		library = LoadLibraryA(libraryName);
+		DllName = (LPCSTR)importDescriptor->Name + (DWORD_PTR)imageBase;
+		library = LoadLibraryA(DllName);
 
 		if (library)
 		{
@@ -39,26 +38,20 @@ int main()
 			while (PINT->u1.AddressOfData != NULL)
 			{
 				functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + PINT->u1.AddressOfData);
-
-				// find MessageBoxA address
 				if (!strcmp(functionName->Name,"MessageBoxA"))
 				{
 					
 					DWORD oldProtect = 0;
 					VirtualProtect((LPVOID)(&PIAT->u1.Function), 8, PAGE_READWRITE, &oldProtect);
-
-					// swap MessageBoxA address with address of hookedMessageBox
-					PIAT->u1.Function = (DWORD_PTR)hookedMessageBox;
+					PIAT->u1.Function = (DWORD_PTR)YourMessage;
 					VirtualProtect((LPVOID)(&PIAT->u1.Function), 4, oldProtect, &oldProtect);
 				}
 				++PINT;
 				++PIAT;
 			}
 		}
-
 		importDescriptor++;
 	}
-
 	MessageBoxA(NULL, "Hello after Hooking", "Hello ", 0);
 
 	return 0;
