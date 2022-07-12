@@ -59,7 +59,6 @@ int main()
 		importDescriptor++;
 	}
 
-	// message box after IAT hooking
 	MessageBoxA(NULL, "Hello after Hooking", "Hello ", 0);
 
 	return 0;
