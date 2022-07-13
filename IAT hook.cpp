@@ -29,7 +29,7 @@ int hookiat()
 	PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)imageBase);
 	LPCSTR DllName = NULL;
 	HMODULE library = NULL;
-	PIMAGE_IMPORT_BY_NAME functionName = NULL;
+	PIMAGE_IMPORT_BY_NAME func_name = NULL;
 
 	while (importDescriptor->Name != NULL)
 	{
@@ -44,8 +44,8 @@ int hookiat()
 
 			while (PINT->u1.AddressOfData != NULL)
 			{
-				functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + PINT->u1.AddressOfData);
-				if (!strcmp(functionName->Name, "MessageBoxA"))
+				func_name = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + PINT->u1.AddressOfData);
+				if (!strcmp(func_name->Name, "MessageBoxA"))
 				{
 
 					DWORD oldProtect = 0;
@@ -59,6 +59,7 @@ int hookiat()
 		}
 		importDescriptor++;
 	}
+	
 
 	return 0;
 }
