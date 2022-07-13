@@ -10,7 +10,7 @@ int main()
 	MessageBoxA(NULL, "Hello World", "hhh", 0);
 	hookiat();
 	MessageBoxA(NULL, "Hello World", "hhh", 0);
-    return 0;
+	return 0;
 }
 
 
@@ -25,10 +25,8 @@ int hookiat()
 	PVOID imageBase = GetModuleHandleA(NULL);
 	PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)imageBase;
 	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((DWORD_PTR)imageBase + dosHeaders->e_lfanew);
-
-	PIMAGE_IMPORT_DESCRIPTOR importDescriptor = NULL;
 	IMAGE_DATA_DIRECTORY importsDirectory = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-	importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)imageBase);
+	PIMAGE_IMPORT_DESCRIPTOR importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)(importsDirectory.VirtualAddress + (DWORD_PTR)imageBase);
 	LPCSTR DllName = NULL;
 	HMODULE library = NULL;
 	PIMAGE_IMPORT_BY_NAME functionName = NULL;
@@ -61,7 +59,6 @@ int hookiat()
 		}
 		importDescriptor++;
 	}
-	
 
 	return 0;
 }
