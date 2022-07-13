@@ -2,17 +2,25 @@
 #include <Windows.h>
 
 
-
-int YourMessage(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
-{
-	MessageBoxW(NULL, L"Hello the IAT Hook", L"The IAT Have been hooked", 0);
-	return 0;
-}
+int YourMessage(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType);
+int hookiat();
 
 int main()
 {
 	MessageBoxA(NULL, "Hello World", "hhh", 0);
+	hookiat();
+	MessageBoxA(NULL, "Hello World", "hhh", 0);
+}
 
+
+int YourMessage(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
+{
+	MessageBoxW(NULL, L"Hello IAT Hook", L"The IAT Have been hooked", 0);
+	return 0;
+}
+
+int hookiat()
+{
 	PVOID imageBase = GetModuleHandleA(NULL);
 	PIMAGE_DOS_HEADER dosHeaders = (PIMAGE_DOS_HEADER)imageBase;
 	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((DWORD_PTR)imageBase + dosHeaders->e_lfanew);
@@ -38,9 +46,9 @@ int main()
 			while (PINT->u1.AddressOfData != NULL)
 			{
 				functionName = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + PINT->u1.AddressOfData);
-				if (!strcmp(functionName->Name,"MessageBoxA"))
+				if (!strcmp(functionName->Name, "MessageBoxA"))
 				{
-					
+
 					DWORD oldProtect = 0;
 					VirtualProtect((LPVOID)(&PIAT->u1.Function), 8, PAGE_READWRITE, &oldProtect);
 					PIAT->u1.Function = (DWORD_PTR)YourMessage;
@@ -52,7 +60,7 @@ int main()
 		}
 		importDescriptor++;
 	}
-	MessageBoxA(NULL, "Hello after Hooking", "Hello ", 0);
+	
 
 	return 0;
 }
