@@ -42,7 +42,7 @@ int hookiat()
 			PINT = (PIMAGE_THUNK_DATA)((DWORD_PTR)imageBase + importDescriptor->OriginalFirstThunk);
 			PIAT = (PIMAGE_THUNK_DATA)((DWORD_PTR)imageBase + importDescriptor->FirstThunk);
 
-			while (PINT->u1.Function != NULL)
+			while (PINT->u1.AddressOfData != NULL)
 			{
 				func_name = (PIMAGE_IMPORT_BY_NAME)((DWORD_PTR)imageBase + PINT->u1.AddressOfData);
 				if (!strcmp(func_name->Name, "MessageBoxA"))
