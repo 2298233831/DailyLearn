@@ -168,7 +168,7 @@ tls_map_t* get_tls_map(){
 void tryGet(){
     void** tls = __get_tls();
     tls_map_t* tls_map_off = get_tls_map();
-    __android_log_print(ANDROID_LOG_INFO, "tls_map", "tls_map_addr %p", get_key_map());
+    __android_log_print(ANDROID_LOG_INFO, "tls_map", "tls_map_addr %p", get_tls_map());
 
 }
 
