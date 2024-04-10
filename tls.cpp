@@ -1,4 +1,27 @@
 //test
+# define __get_tls() ({ void** __val; __asm__("mrs %0, tpidr_el0" : "=r"(__val)); __val; })
+
+#define BIONIC_ALIGN(value, alignment) \
+(((value) + (alignment) - 1) & ~((alignment) - 1))
+
+#define GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT 5
+
+#if defined(USE_JEMALLOC)
+/* jemalloc uses 5 keys for itself. */
+#define BIONIC_TLS_RESERVED_SLOTS (GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT + 5)
+#else
+#define BIONIC_TLS_RESERVED_SLOTS GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT
+#endif
+
+#define _POSIX_THREAD_KEYS_MAX 128
+#define PTHREAD_KEYS_MAX _POSIX_THREAD_KEYS_MAX
+#define BIONIC_TLS_SLOTS BIONIC_ALIGN(PTHREAD_KEYS_MAX + TLS_SLOT_FIRST_USER_SLOT + BIONIC_TLS_RESERVED_SLOTS, 4)
+#define TLSMAP_BITS       32
+#define TLSMAP_WORDS      ((BIONIC_TLS_SLOTS+TLSMAP_BITS-1)/TLSMAP_BITS)
+#define TLSMAP_WORD(m,k)  (m).map[(k)/TLSMAP_BITS]
+#define TLSMAP_MASK(k)    (1U << ((k)&(TLSMAP_BITS-1)))
+#define LIB_NAME "/system/lib64/libc.so"
+
 enum {
     TLS_SLOT_SELF = 0, // The kernel requires this specific slot for x86.
     TLS_SLOT_THREAD_ID,
@@ -21,25 +44,6 @@ enum {
     TLS_SLOT_FIRST_USER_SLOT // Must come last!
 };
 
-#define BIONIC_ALIGN(value, alignment) \
-(((value) + (alignment) - 1) & ~((alignment) - 1))
-
-#define GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT 5
-
-#if defined(USE_JEMALLOC)
-/* jemalloc uses 5 keys for itself. */
-#define BIONIC_TLS_RESERVED_SLOTS (GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT + 5)
-#else
-#define BIONIC_TLS_RESERVED_SLOTS GLOBAL_INIT_THREAD_LOCAL_BUFFER_COUNT
-#endif
-
-#define _POSIX_THREAD_KEYS_MAX 128
-#define PTHREAD_KEYS_MAX _POSIX_THREAD_KEYS_MAX
-#define BIONIC_TLS_SLOTS BIONIC_ALIGN(PTHREAD_KEYS_MAX + TLS_SLOT_FIRST_USER_SLOT + BIONIC_TLS_RESERVED_SLOTS, 4)
-#define TLSMAP_BITS       32
-#define TLSMAP_WORDS      ((BIONIC_TLS_SLOTS+TLSMAP_BITS-1)/TLSMAP_BITS)
-#define TLSMAP_WORD(m,k)  (m).map[(k)/TLSMAP_BITS]
-#define TLSMAP_MASK(k)    (1U << ((k)&(TLSMAP_BITS-1)))
 
 typedef void (*key_destructor_t)(void*);
 
@@ -157,6 +161,77 @@ private:
     }
 };
 
+unsigned long get_symbol_value(const char* filename,const char* target_name,int len) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        perror("File open error");
+        return 0;
+    }
+
+    Elf64_Ehdr header;
+    fread(&header, sizeof(header), 1, file);
+
+    fseek(file, header.e_shoff, SEEK_SET);
+    Elf64_Shdr* section_headers = (Elf64_Shdr*)malloc(sizeof(Elf64_Shdr) * header.e_shnum);
+    fread(section_headers, sizeof(Elf64_Shdr), header.e_shnum, file);
+
+    Elf64_Shdr* symtab_section = NULL;
+    char* strtab = NULL;
+
+    for (int i = 0; i < header.e_shnum; i++) {
+        if (section_headers[i].sh_type == SHT_SYMTAB) {
+            symtab_section = &section_headers[i];
+            break;
+        }
+    }
+
+    if (symtab_section) {
+        int sym_count = symtab_section->sh_size / symtab_section->sh_entsize;
+        Elf64_Sym* symtab = (Elf64_Sym*)malloc(sizeof(Elf64_Sym) * sym_count);
+
+        fseek(file, symtab_section->sh_offset, SEEK_SET);
+        fread(symtab, sizeof(Elf64_Sym), sym_count, file);
+
+        if (symtab_section->sh_link != SHN_UNDEF) {
+            Elf64_Shdr* strtab_section = &section_headers[symtab_section->sh_link];
+            strtab = (char*)malloc(strtab_section->sh_size);
+
+            fseek(file, strtab_section->sh_offset, SEEK_SET);
+            fread(strtab, strtab_section->sh_size, 1, file);
+        }
+
+        unsigned long symbol_value = 0;
+
+        for (int i = 0; i < sym_count; i++) {
+            const char* symbol_name = strtab + symtab[i].st_name;
+            if (strstr(symbol_name, target_name) != NULL && strlen(symbol_name) == len) {
+                symbol_value = symtab[i].st_value;
+                break;
+            }
+        }
+
+        free(symtab);
+        free(strtab);
+
+        fclose(file);
+
+        return symbol_value;
+    }
+
+    free(section_headers);
+    fclose(file);
+
+    return 0;
+}
+
+size_t get_module_base(){
+    int offset = get_symbol_value(LIB_NAME,"puts",4);
+    //__android_log_print(ANDROID_LOG_INFO, "Keydata", "offset: %p", offset);
+    return (size_t) puts - offset;
+}
+
+
+
 //static tls_map_t s_tls_map_;
 
 tls_map_t* get_tls_map(){
@@ -171,4 +246,3 @@ void tryGet(){
     __android_log_print(ANDROID_LOG_INFO, "tls_map", "tls_map_addr %p", get_tls_map());
 
 }
-
