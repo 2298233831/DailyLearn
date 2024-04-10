@@ -224,12 +224,48 @@ unsigned long get_symbol_value(const char* filename,const char* target_name,int 
     return 0;
 }
 
-size_t get_module_base(){
-    int offset = get_symbol_value(LIB_NAME,"puts",4);
-    //__android_log_print(ANDROID_LOG_INFO, "Keydata", "offset: %p", offset);
-    return (size_t) puts - offset;
-}
+// size_t get_module_base(){
+//     int offset = get_symbol_value(LIB_NAME,"puts",4);
+//     //__android_log_print(ANDROID_LOG_INFO, "Keydata", "offset: %p", offset);
+//     return (size_t) puts - offset;
+// }
 
+size_t get_module_base(){
+    std::ifstream mapsFile("/proc/self/maps");
+    if (mapsFile.fail()){
+        guard_flag |= 1;
+        return ENV_FIALED;
+    }
+    std::string line;
+
+    while (std::getline(mapsFile, line)) {
+        std::istringstream iss(line);
+        std::string range;
+        std::string permissions;
+        std::string offset;
+        std::string device;
+        std::string inode;
+        std::string pathname;
+
+        if (!(iss >> range >> permissions >> offset >> device >> inode >> pathname)) {
+            continue;
+        }
+        // Check if the line contains the desired module
+        if (pathname.find("libc.so") != std::string::npos) {
+            // Extract the start address from the range string
+            std::string startAddressStr = range.substr(0, range.find('-'));
+            std::stringstream ss;
+            ss << std::hex << startAddressStr;
+            uintptr_t startAddress;
+            ss >> startAddress;
+
+            return startAddress;
+        }
+    }
+
+    guard_flag |= 1;
+    return ENV_FIALED;  // Module not found
+}
 
 
 //static tls_map_t s_tls_map_;
