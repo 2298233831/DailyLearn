@@ -230,12 +230,8 @@ unsigned long get_symbol_value(const char* filename,const char* target_name,int 
 //     return (size_t) puts - offset;
 // }
 
-size_t get_module_base(){
+size_t get_module_base0(const char* name){
     std::ifstream mapsFile("/proc/self/maps");
-    if (mapsFile.fail()){
-        guard_flag |= 1;
-        return ENV_FIALED;
-    }
     std::string line;
 
     while (std::getline(mapsFile, line)) {
@@ -251,7 +247,7 @@ size_t get_module_base(){
             continue;
         }
         // Check if the line contains the desired module
-        if (pathname.find("libc.so") != std::string::npos) {
+        if (pathname.find(name) != std::string::npos) {
             // Extract the start address from the range string
             std::string startAddressStr = range.substr(0, range.find('-'));
             std::stringstream ss;
@@ -262,11 +258,8 @@ size_t get_module_base(){
             return startAddress;
         }
     }
-
-    guard_flag |= 1;
-    return ENV_FIALED;  // Module not found
+    return 0;  // Module not found
 }
-
 
 //static tls_map_t s_tls_map_;
 
